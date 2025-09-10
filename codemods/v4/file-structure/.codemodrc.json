@@ -1,6 +1,6 @@
 {
   "$schema": "https://codemod-utils.s3.us-west-1.amazonaws.com/configuration_schema.json",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "name": "nuxt/4/file-structure",
   "engine": "workflow",
@@ -13,6 +13,6 @@
   },
   "meta": {
     "tags": ["nuxt", "4", "migration"],
-    "git": "https://github.com/codemod-com/commons/tree/main/codemods/nuxt/4/file-structure"
+    "git": "https://github.com/codemod/nuxt-codemods/tree/main/codemods/v4/file-structure"
   }
 }

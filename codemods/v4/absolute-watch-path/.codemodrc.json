@@ -1,6 +1,6 @@
 {
   "$schema": "https://codemod-utils.s3.us-west-1.amazonaws.com/configuration_schema.json",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": false,
   "name": "nuxt/4/absolute-watch-path",
   "engine": "jscodeshift",
@@ -13,7 +13,7 @@
   },
   "meta": {
     "tags": ["nuxt", "4", "migration"],
-    "git": "https://github.com/codemod-com/commons/tree/main/codemods/nuxt/4/absolute-watch-path"
+    "git": "https://github.com/codemod/nuxt-codemods/tree/main/codemods/v4/absolute-watch-path"
   },
   "include": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.vue"]
 }
