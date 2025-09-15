@@ -1,8 +1,8 @@
 {
   "$schema": "https://codemod-utils.s3.us-west-1.amazonaws.com/configuration_schema.json",
   "name": "nuxt/4/migration-recipe",
-  "version": "1.0.7",
-  "private": false,
+  "version": "1.0.9",
+  "private": true,
   "engine": "recipe",
   "names": [
     "nuxt/4/absolute-watch-path",

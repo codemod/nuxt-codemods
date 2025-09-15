@@ -1,9 +1,9 @@
 {
   "$schema": "https://codemod-utils.s3.us-west-1.amazonaws.com/configuration_schema.json",
   "name": "nuxt/4/default-data-error-value",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "engine": "jscodeshift",
-  "private": false,
+  "private": true,
   "include": ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.vue"],
   "applicability": {
     "from": [
