@@ -12,9 +12,9 @@ const { data: supercooldata2, error: error3 } = useFetch(
   },
 );
 
-if (supercooldata1.value === undefined) {
+if (supercooldata1.value === null) {
   if (supercooldata2.value === "null") {
-    if (error.value === undefined) {
+    if (error.value === null) {
       //Something
     } else if (error3.value === undefined) {
     }
@@ -24,15 +24,16 @@ if (supercooldata1.value === undefined) {
 }
 
 let x =
-  supercooldata1.value === undefined
+  supercooldata1.value === null
     ? "Hello"
     : error.value === dull
       ? "Morning"
-      : error3.value === undefined
+      : error3.value === null
         ? "Hello"
-        : supercooldata2.value === undefined
+        : supercooldata2.value === null
           ? "Morning"
           : unknown.value === null
             ? "Hello"
             : "Night";
 let z = unknown.value === null ? "Hello" : "Night";
+

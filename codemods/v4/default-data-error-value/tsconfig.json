@@ -1,24 +1,30 @@
 {
   "compilerOptions": {
-    "outDir": "./dist",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "isolatedModules": true,
-    "module": "NodeNext",
-    "skipLibCheck": true,
-    "strict": true,
-    "target": "ES6",
     "allowJs": true,
-    "noUncheckedIndexedAccess": true
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": "./scripts",
+    "types": ["node"]
   },
   "include": [
-    "./src/**/*.ts",
-    "./src/**/*.js",
-    "./test/**/*.ts",
-    "./test/**/*.js"
+    "scripts/**/*"
   ],
-  "exclude": ["node_modules", "./dist/**/*"],
-  "ts-node": {
-    "transpileOnly": true
-  }
+  "exclude": [
+    "node_modules",
+    "dist",
+    "tests"
+  ]
 }

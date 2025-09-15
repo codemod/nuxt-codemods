@@ -1,0 +1,14 @@
+name: nuxt/4/deprecated-dedupe-value-jssg
+version: 1.0.3
+engine: ast-grep-js
+private: false
+include: ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx", "**/*.vue"]
+applicability:
+  from:
+    - ["nuxt", ">=", "3.0.0"]
+    - ["nuxt", "<", "4.0.0"]
+  to: [["nuxt", ">=", "4.0.0"]]
+arguments: []
+meta:
+  tags: ["nuxt", "4", "migration", "jssg"]
+  git: "https://github.com/codemod/nuxt-codemods/tree/main/codemods/v4/deprecated-dedupe-value-jssg"

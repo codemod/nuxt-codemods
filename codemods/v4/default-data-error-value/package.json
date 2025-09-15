@@ -1,20 +1,23 @@
 {
-  "name": "@codemod/nuxt-4-default-data-error-value",
+  "name": "@codemod/nuxt-4-default-data-error-value-jssg",
+  "version": "1.0.3",
   "private": true,
-  "dependencies": {},
+  "type": "module",
+  "dependencies": {
+    "@codemod.com/jssg-types": "latest"
+  },
   "devDependencies": {
     "typescript": "^5.2.2",
-    "ts-node": "^10.9.1",
-    "jscodeshift": "^0.15.1",
-    "@types/jscodeshift": "^0.11.10",
-    "vitest": "^1.0.1",
-    "@vitest/coverage-v8": "^1.0.1"
+    "ts-node": "^10.9.1"
   },
-  "scripts": {},
+  "scripts": {
+    "test": "npx codemod jssg test -l tsx ./scripts/codemod.ts",
+    "test:update": "npx codemod jssg test -l tsx ./scripts/codemod.ts -u",
+    "bundle": "npx codemod jssg bundle ./scripts/codemod.ts"
+  },
   "files": [
     "./README.md",
-    "./.codemodrc.json",
+    "./codemod.yaml",
     "./dist/index.cjs"
-  ],
-  "type": "module"
+  ]
 }
