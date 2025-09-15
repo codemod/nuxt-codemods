@@ -1,43 +1,35 @@
-This codemod transforms the `data` object returned from `useAsyncData`, `useFetch`, `useLazyAsyncData` and `useLazyFetch` into a `shallowRef`
+# shallow-function-reactivity
 
-When new data is fetched, anything depending on `data` will still be reactive because the entire object is replaced. But if your code changes a property within that data structure, this will not trigger any reactivity in your app.
+Add deep: true option to useLazyAsyncData, useAsyncData, useFetch, and useLazyFetch calls
 
-This brings a significant performance improvement for deeply nested objects and arrays because Vue does not need to watch every single property/array for modification. In most cases, data should also be immutable.
+## Installation
 
-## Before
+```bash
+# Install from registry
+codemod run shallow-function-reactivity
 
-```jsx
-const { data } = useFetch("/api/test");
+# Or run locally
+codemod run -w workflow.yaml
 ```
 
-> This can apply to all useAsyncData, useFetch, useLazyAsyncData and useLazyFetch.
+## Usage
 
-## After
+This codemod adds the deep: true option to Nuxt composables to ensure proper reactivity for function-based data.
 
-```jsx
-const { data } = useFetch("/api/test", { deep: true });
+### Before
+
+```tsx
+// biome-ignore lint/correctness/useHookAtTopLevel: <explanation>
+const { data } = useLazyAsyncData("/api/test");
 ```
 
-### Additional Feature
+### After
 
-This codemod ensures that any unique key of your data is always resolvable to the same data. For example, if you are using `useAsyncData` to fetch data related to a particular page, it should be changed to a key that uniquely matches that data. (`useFetch` should do this automatically for you.)
-
-### Example
-
-Code before transformation:
-
-```jsx
-const route = useRoute();
-const { data } = await useAsyncData(async () => {
-  return await $fetch(`/api/my-page/${route.params.slug}`);
-});
+```tsx
+// biome-ignore lint/correctness/useHookAtTopLevel: <explanation>
+const { data } = useLazyAsyncData("/api/test", { deep: true });
 ```
 
-Code after transformation:
+## License
 
-```jsx
-const route = useRoute();
-const { data } = await useAsyncData(route.params.slug, async () => {
-  return await $fetch(`/api/my-page/${route.params.slug}`), { deep: true };
-});
-```
+MIT

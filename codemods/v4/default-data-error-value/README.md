@@ -1,55 +1,107 @@
-# Feature Documentation: Updating `null` Comparisons to `undefined`
+# default-data-error-value
 
-## Overview
+Transform null checks to undefined for useAsyncData and useFetch data/error variables
 
-Default `data` and `error` values in `useAsyncData` and `useFetch`
+## Installation
 
-### What Changed
+```bash
+# Install from registry
+codemod run default-data-error-value
 
-The `data` and `error` objects returned from `useAsyncData` and `useFetch` will now default to `undefined`.
+# Or run locally
+codemod run -w workflow.yaml
+```
 
-## Before and After Examples
+## Usage
+
+This codemod transforms null checks to undefined for data and error variables from useAsyncData and useFetch hooks.
 
 ### Before
 
-```javascript
-const { data, error } = useAsyncData(
+```tsx
+const { data: supercooldata1, error } = useAsyncData(
   () => client.value.v1.lists.$select(list.value).fetch(),
   {
     default: () => shallowRef(),
   },
 );
 
-if (data.value === null) {
-  // Handle case where data is null
+const { data: supercooldata2, error: error3 } = useFetch(
+  () => client.value.v1.lists.$select(list.value).fetch(),
+  {
+    default: () => shallowRef(),
+  },
+);
+
+if (supercooldata1.value === null) {
+  if (supercooldata2.value === "null") {
+    if (error.value === null) {
+      //Something
+    } else if (error3.value === null) {
+    }
+    //Something
+  }
+  //Something
 }
 
 let x =
-  data.value === null
-    ? "No Data"
-    : error.value === null
-      ? "Error"
-      : "Data Available";
+  supercooldata1.value === null
+    ? "Hello"
+    : error.value === dull
+      ? "Morning"
+      : error3.value === null
+        ? "Hello"
+        : supercooldata2.value === null
+          ? "Morning"
+          : unknown.value === null
+            ? "Hello"
+            : "Night";
+let z = unknown.value === null ? "Hello" : "Night";
 ```
 
 ### After
 
-```javascript
-const { data, error } = useAsyncData(
+```tsx
+const { data: supercooldata1, error } = useAsyncData(
   () => client.value.v1.lists.$select(list.value).fetch(),
   {
     default: () => shallowRef(),
   },
 );
 
-if (data.value === undefined) {
-  // Handle case where data is undefined
+const { data: supercooldata2, error: error3 } = useFetch(
+  () => client.value.v1.lists.$select(list.value).fetch(),
+  {
+    default: () => shallowRef(),
+  },
+);
+
+if (supercooldata1.value === undefined) {
+  if (supercooldata2.value === "null") {
+    if (error.value === undefined) {
+      //Something
+    } else if (error3.value === undefined) {
+    }
+    //Something
+  }
+  //Something
 }
 
 let x =
-  data.value === undefined
-    ? "No Data"
-    : error.value === undefined
-      ? "Error"
-      : "Data Available";
+  supercooldata1.value === undefined
+    ? "Hello"
+    : error.value === dull
+      ? "Morning"
+      : error3.value === undefined
+        ? "Hello"
+        : supercooldata2.value === undefined
+          ? "Morning"
+          : unknown.value === null
+            ? "Hello"
+            : "Night";
+let z = unknown.value === null ? "Hello" : "Night";
 ```
+
+## License
+
+MIT
