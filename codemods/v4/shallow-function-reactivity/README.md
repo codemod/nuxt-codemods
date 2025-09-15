@@ -6,10 +6,10 @@ Add deep: true option to useLazyAsyncData, useAsyncData, useFetch, and useLazyFe
 
 ```bash
 # Install from registry
-codemod run shallow-function-reactivity
+npx codemod@latest run @nuxt/shallow-function-reactivity
 
 # Or run locally
-codemod run -w workflow.yaml
+npx codemod@latest run -w workflow.yaml
 ```
 
 ## Usage

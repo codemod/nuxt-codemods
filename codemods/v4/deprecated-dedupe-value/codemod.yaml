@@ -1,9 +1,9 @@
 schema_version: "1.0"
 
-name: "deprecated-dedupe-value"
+name: "@nuxt/deprecated-dedupe-value"
 version: "0.1.0"
 description: "Transform deprecated dedupe values in refresh() calls"
-author: "Codemod Team"
+author: Codemod
 license: "MIT"
 workflow: "workflow.yaml"
 category: "migration"
@@ -11,8 +11,8 @@ category: "migration"
 targets:
   languages: ["tsx"]
 
-keywords: ["transformation", "migration"]
+keywords: ["nuxt", "v4"]
 
 registry:
-  access: "private"
-  visibility: "private"
+  access: "public"
+  visibility: "public"

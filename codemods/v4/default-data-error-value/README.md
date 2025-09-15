@@ -6,10 +6,10 @@ Transform null checks to undefined for useAsyncData and useFetch data/error vari
 
 ```bash
 # Install from registry
-codemod run default-data-error-value
+npx codemod@latest run @nuxt/default-data-error-value
 
 # Or run locally
-codemod run -w workflow.yaml
+npx codemod@latest run -w workflow.yaml
 ```
 
 ## Usage

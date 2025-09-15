@@ -6,10 +6,10 @@ Transform deprecated dedupe boolean values to string values in refresh() calls
 
 ```bash
 # Install from registry
-codemod run deprecated-dedupe-value
+npx codemod@latest run @nuxt/deprecated-dedupe-value
 
 # Or run locally
-codemod run -w workflow.yaml
+npx codemod@latest run -w workflow.yaml
 ```
 
 ## Usage
