@@ -15,44 +15,56 @@ async function transform(root: SgRoot<TSX>): Promise<string> {
   const allEdits = [];
 
   hooks.forEach((hookName) => {
-    // Find calls with single argument (no options object)
-    const singleArgCalls = rootNode.findAll({
+    // Find all calls to this hook
+    const hookCalls = rootNode.findAll({
       rule: {
-        pattern: `${hookName}($ARG)`,
+        pattern: `${hookName}($ARGS)`,
       },
     });
 
-    const singleArgEdits = singleArgCalls.map((call) => {
-      const arg = call.getMatch("ARG");
-      if (arg && !arg.text().includes("{") && !arg.text().includes("}")) {
-        // Single argument without options object - add options with deep: true
-        return call.replace(`${hookName}(${arg.text()}, { deep: true })`);
+    hookCalls.forEach((call) => {
+      const args = call.getMatch("ARGS");
+      if (args) {
+        // Check if it's a single argument (not an object)
+        if (!args.is("object")) {
+          // Single argument - add options with deep: true
+          allEdits.push(call.replace(`${hookName}(${args.text()}, { deep: true })`));
+        }
       }
-      return null;
-    }).filter(Boolean);
+    });
 
-    allEdits.push(...singleArgEdits);
-
-    // Find calls with options object that don't have deep property
-    const optionsCalls = rootNode.findAll({
+    // Also find calls with two arguments
+    const twoArgCalls = rootNode.findAll({
       rule: {
-        pattern: `${hookName}($ARG, $OPTIONS)`,
+        pattern: `${hookName}($ARG1, $ARG2)`,
       },
     });
 
-    const optionsEdits = optionsCalls.map((call) => {
-      const options = call.getMatch("OPTIONS");
-      if (options && options.text().includes("{") && !options.text().includes("deep")) {
-        // Options object without deep property - add deep: true
-        const optionsText = options.text();
-        const newOptions = optionsText.replace("}", ", deep: true }");
-        const arg = call.getMatch("ARG");
-        return call.replace(`${hookName}(${arg?.text()}, ${newOptions})`);
-      }
-      return null;
-    }).filter(Boolean);
+    twoArgCalls.forEach((call) => {
+      const arg1 = call.getMatch("ARG1");
+      const arg2 = call.getMatch("ARG2");
+      
+      if (arg2 && arg2.is("object")) {
+        // Check if deep property already exists
+        const deepProperty = arg2.find({
+          rule: {
+            pattern: "deep: $VALUE",
+          },
+        });
 
-    allEdits.push(...optionsEdits);
+        if (!deepProperty) {
+          // Add deep: true to existing options
+          const optionsText = arg2.text();
+          if (optionsText === "{}") {
+            // Empty object
+            allEdits.push(arg2.replace(`{ deep: true }`));
+          } else {
+            // Non-empty object - add before closing brace
+            allEdits.push(arg2.replace(`${optionsText.slice(0, -1)}, deep: true }`));
+          }
+        }
+      }
+    });
   });
 
   if (allEdits.length === 0) {
