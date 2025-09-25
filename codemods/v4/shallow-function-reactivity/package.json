@@ -1,20 +1,14 @@
 {
-  "name": "@codemod/nuxt-4-shallow-data-reactivity",
-  "private": true,
-  "dependencies": {},
-  "devDependencies": {
-    "typescript": "^5.2.2",
-    "ts-node": "^10.9.1",
-    "jscodeshift": "^0.15.1",
-    "@types/jscodeshift": "^0.11.10",
-    "vitest": "^1.0.1",
-    "@vitest/coverage-v8": "^1.0.1"
-  },
-  "scripts": {},
-  "files": [
-    "./README.md",
-    "./.codemodrc.json",
-    "./dist/index.cjs"
-  ],
-  "type": "module"
+	"name": "shallow-function-reactivity",
+	"version": "0.1.0",
+	"description": "Add deep: true to useLazyAsyncData, useAsyncData, useFetch, and useLazyFetch calls",
+	"type": "module",
+	"devDependencies": {
+		"@codemod.com/jssg-types": "^1.0.7",
+		"typescript": "^5.8.3"
+	},
+	"scripts": {
+		"test": "npx codemod@latest jssg test -l typescript ./scripts/codemod.ts",
+		"check-types": "npx tsc --noEmit"
+	}
 }

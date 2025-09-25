@@ -1,0 +1,18 @@
+schema_version: "1.0"
+
+name: "@nuxt/default-data-error-value"
+version: "0.1.0"
+description: "Transform null checks to undefined for useAsyncData and useFetch data/error variables"
+author: Codemod
+license: "MIT"
+workflow: "workflow.yaml"
+category: "migration"
+
+targets:
+  languages: ["tsx"]
+
+keywords: ["nuxt", "v4"]
+
+registry:
+  access: "public"
+  visibility: "public"

@@ -1,33 +1,37 @@
-This codemod removes deprecated boolean values for the dedupe option in refresh calls, replacing them with string literals cancel and defer
+# deprecated-dedupe-value
 
-🚦 **Impact Level**: Minimal
+Transform deprecated dedupe boolean values to string values in refresh() calls
 
-## What Changed
+## Installation
 
-Previously, it was possible to pass `dedupe: boolean` to `refresh`. These were aliases of `cancel` (true) and `defer` (false).
+```bash
+# Install from registry
+npx codemod@latest run @nuxt/deprecated-dedupe-value
 
-## Before
-
-```jsx
-const { refresh } = await useAsyncData(async () => ({
-  message: "Hello, Nuxt 3!",
-}));
-
-async function refreshData() {
-  await refresh({ dedupe: true });
-  await refresh({ dedupe: false });
-}
+# Or run locally
+npx codemod@latest run -w workflow.yaml
 ```
 
-## After
+## Usage
 
-```jsx
-const { refresh } = await useAsyncData(async () => ({
-  message: "Hello, Nuxt 3!",
-}));
+This codemod transforms deprecated boolean values for the dedupe option in refresh() calls to their new string equivalents.
 
-async function refreshData() {
-  await refresh({ dedupe: "cancel" });
-  await refresh({ dedupe: "defer" });
-}
+### Before
+
+```tsx
+// biome-ignore lint/correctness/useHookAtTopLevel: <explanation>
+await refresh({ dedupe: true });
+await refresh({ dedupe: false });
 ```
+
+### After
+
+```tsx
+// biome-ignore lint/correctness/useHookAtTopLevel: <explanation>
+await refresh({ dedupe: "cancel" });
+await refresh({ dedupe: "defer" });
+```
+
+## License
+
+MIT
