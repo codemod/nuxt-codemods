@@ -1,6 +1,6 @@
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
-import { hasContent } from "../utils/index";
+import { hasContent } from "../utils/index.js";
 
 function transform(root: SgRoot<TS>): string | null {
   const rootNode = root.root();
@@ -71,8 +71,8 @@ function transform(root: SgRoot<TS>): string | null {
     let topImports = [];
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.startsWith("import ")) {
+      const line = lines[i]?.trim();
+      if (line?.startsWith("import ")) {
         topImports.push(line);
       } else if (line && !line.startsWith("//") && !line.startsWith("/*")) {
         // Stop at first non-import, non-comment line
@@ -103,7 +103,7 @@ function transform(root: SgRoot<TS>): string | null {
         const match = nodeImportLine.match(
           /import\s*\{\s*([^}]*)\s*\}\s*from\s*["']node:fs["'];?/
         );
-        if (match) {
+        if (match && match[1]) {
           const specs = match[1].trim();
           const newSpecs = specs ? `${specs}, readFileSync` : "readFileSync";
           const newImportLine = `import { ${newSpecs} } from "node:fs";`;
@@ -117,9 +117,9 @@ function transform(root: SgRoot<TS>): string | null {
 
         // Find the last import line
         for (let i = 0; i < lines.length; i++) {
-          if (lines[i].trim().startsWith("import ")) {
+          if (lines[i]?.trim().startsWith("import ")) {
             insertIndex = i + 1;
-          } else if (lines[i].trim() && !lines[i].trim().startsWith("//")) {
+          } else if (lines[i]?.trim() && !lines[i]?.trim().startsWith("//")) {
             // Stop at first non-comment, non-empty line
             break;
           }
@@ -144,7 +144,7 @@ function transform(root: SgRoot<TS>): string | null {
         const match = lodashImportLine.match(
           /import\s*\{\s*([^}]*)\s*\}\s*from\s*["']lodash-es["'];?/
         );
-        if (match) {
+        if (match && match[1]) {
           const specs = match[1].trim();
           const newSpecs = specs ? `${specs}, template` : "template";
           const newImportLine = `import { ${newSpecs} } from "lodash-es";`;
@@ -161,9 +161,9 @@ function transform(root: SgRoot<TS>): string | null {
 
         // Find the last import line
         for (let i = 0; i < lines.length; i++) {
-          if (lines[i].trim().startsWith("import ")) {
+          if (lines[i]?.trim().startsWith("import ")) {
             insertIndex = i + 1;
-          } else if (lines[i].trim() && !lines[i].trim().startsWith("//")) {
+          } else if (lines[i]?.trim() && !lines[i]?.trim().startsWith("//")) {
             // Stop at first non-comment, non-empty line
             break;
           }

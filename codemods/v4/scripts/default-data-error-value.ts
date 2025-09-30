@@ -1,13 +1,17 @@
-import type { SgRoot } from "codemod:ast-grep";
+import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
-import { shouldProcess, applyEdits } from "../utils/index";
-import { NUXT_PATTERNS, DATA_FETCH_HOOKS } from "../utils/index";
+import {
+  hasAnyContent,
+  applyEdits,
+  DATA_FETCH_HOOKS,
+  PATTERNS,
+} from "../utils/index.js";
 
 async function transform(root: SgRoot<TSX>): Promise<string | null> {
   const rootNode = root.root();
 
-  // Quick check using utility
-  if (!shouldProcess(root, DATA_FETCH_HOOKS)) {
+  // Quick check - does file contain data fetching hooks?
+  if (!hasAnyContent(root, DATA_FETCH_HOOKS)) {
     return null;
   }
 
@@ -16,12 +20,17 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
 
   // Find all const declarations that assign to data fetch hooks
   const constDeclarations = rootNode.findAll({
-    rule: { pattern: NUXT_PATTERNS.CONST_DECLARATION },
+    rule: { pattern: PATTERNS.CONST_DECLARATION },
   });
 
   constDeclarations.forEach((decl) => {
     const hook = decl.getMatch("HOOK");
-    if (hook && DATA_FETCH_HOOKS.includes(hook.text() as any)) {
+    if (
+      hook &&
+      DATA_FETCH_HOOKS.includes(
+        hook.text() as (typeof DATA_FETCH_HOOKS)[number]
+      )
+    ) {
       const declPattern = decl.getMatch("DECL");
       if (declPattern?.is("object_pattern")) {
         // Get all children of the object pattern to find properties
@@ -72,10 +81,12 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
       }
       return null;
     })
-    .filter(Boolean);
+    .filter((edit): edit is Edit => edit !== null);
 
-  // Use utility for applying edits
-  return applyEdits(rootNode, edits);
+  if (edits.length === 0) {
+    return null;
+  }
+  return rootNode.commitEdits(edits);
 }
 
 export default transform;

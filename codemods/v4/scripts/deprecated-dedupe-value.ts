@@ -1,26 +1,25 @@
-import type { SgRoot } from "codemod:ast-grep";
+import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
-import {
-  hasContent,
-  applyEdits,
-  replaceInNode,
-  NUXT_PATTERNS,
-} from "../utils/index";
+import { hasContent, applyEdits, replaceInNode } from "../utils/index.js";
 
 async function transform(root: SgRoot<TSX>): Promise<string | null> {
   const rootNode = root.root();
 
-  // Quick check using utility
+  // Quick check - does file contain refresh calls?
   if (!hasContent(root, "refresh")) {
     return null;
   }
 
-  // Find all refresh calls using utility pattern
+  // Find all refresh calls
   const refreshCalls = rootNode.findAll({
-    rule: { pattern: NUXT_PATTERNS.REFRESH_CALL },
+    rule: { pattern: "await refresh($ARGS)" },
   });
 
-  const allEdits = [];
+  if (refreshCalls.length === 0) {
+    return null;
+  }
+
+  const edits: Edit[] = [];
 
   refreshCalls.forEach((call) => {
     // Use utility for regex replacement
@@ -31,12 +30,14 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
       'dedupe: "defer"'
     );
 
-    if (trueEdit) allEdits.push(trueEdit);
-    if (falseEdit) allEdits.push(falseEdit);
+    if (trueEdit) edits.push(trueEdit);
+    if (falseEdit) edits.push(falseEdit);
   });
 
-  // Use utility for applying edits
-  return applyEdits(rootNode, allEdits);
+  if (edits.length === 0) {
+    return null;
+  }
+  return rootNode.commitEdits(edits);
 }
 
 export default transform;

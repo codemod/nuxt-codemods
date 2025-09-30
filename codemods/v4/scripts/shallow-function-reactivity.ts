@@ -1,21 +1,18 @@
-import type { SgRoot } from "codemod:ast-grep";
+import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
-import { applyEdits } from "../utils/index";
+import { hasAnyContent, applyEdits, DATA_FETCH_HOOKS } from "../utils/index.js";
 
 async function transform(root: SgRoot<TSX>): Promise<string | null> {
   const rootNode = root.root();
 
-  // Find all useLazyAsyncData, useAsyncData, useFetch, and useLazyFetch calls
-  const hooks = [
-    "useLazyAsyncData",
-    "useAsyncData",
-    "useFetch",
-    "useLazyFetch",
-  ];
+  // Quick check - does file contain data fetching hooks?
+  if (!hasAnyContent(root, DATA_FETCH_HOOKS)) {
+    return null;
+  }
 
-  const allEdits = [];
+  const allEdits: Edit[] = [];
 
-  hooks.forEach((hookName) => {
+  DATA_FETCH_HOOKS.forEach((hookName) => {
     // Find all calls to this hook with single argument (function only)
     const singleArgCalls = rootNode.findAll({
       rule: {
@@ -37,7 +34,6 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
     });
   });
 
-  // Use utility for applying edits
   return applyEdits(rootNode, allEdits);
 }
 

@@ -1,7 +1,12 @@
 // jssg-codemod
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
-import { hasContent, applyEdits } from "../utils/index";
+import {
+  hasContent,
+  applyEdits,
+  findFunctionCallsWithFirstArg,
+  createImportEdit,
+} from "../utils/index.js";
 
 async function transform(root: SgRoot<TS>): Promise<string | null> {
   const rootNode = root.root();
@@ -12,19 +17,11 @@ async function transform(root: SgRoot<TS>): Promise<string | null> {
   }
 
   // Find nuxt.hook('builder:watch', ...) calls with arrow functions
-  const hookCallsSingle = rootNode.findAll({
-    rule: {
-      pattern: "nuxt.hook('builder:watch', $CALLBACK)",
-    },
-  });
-
-  const hookCallsDouble = rootNode.findAll({
-    rule: {
-      pattern: 'nuxt.hook("builder:watch", $CALLBACK)',
-    },
-  });
-
-  const hookCalls = [...hookCallsSingle, ...hookCallsDouble];
+  const hookCalls = findFunctionCallsWithFirstArg(
+    rootNode,
+    "nuxt.hook",
+    "builder:watch"
+  );
 
   if (hookCalls.length === 0) {
     return null;
@@ -33,8 +30,7 @@ async function transform(root: SgRoot<TS>): Promise<string | null> {
   const edits: Edit[] = [];
   let needsImportUpdate = false;
 
-  // Check existing imports
-  const importInfo = analyzeExistingImports(rootNode);
+  // We'll check imports when needed
 
   // Process each hook call
   for (const hookCall of hookCalls) {
@@ -50,7 +46,7 @@ async function transform(root: SgRoot<TS>): Promise<string | null> {
     // Filter out non-parameter children (parentheses, commas)
     const paramList = parameters
       .children()
-      .filter((child: any) => child.is("required_parameter"));
+      .filter((child) => child.is("required_parameter"));
     if (paramList.length !== 2) {
       continue;
     }
@@ -110,7 +106,10 @@ async function transform(root: SgRoot<TS>): Promise<string | null> {
 
   // Add imports if needed
   if (needsImportUpdate) {
-    const importEdit = createImportEdit(rootNode, importInfo);
+    const importEdit = createImportEdit(rootNode, "node:path", [
+      "relative",
+      "resolve",
+    ]);
     if (importEdit) {
       edits.unshift(importEdit); // Add import at the beginning
     }
@@ -118,88 +117,6 @@ async function transform(root: SgRoot<TS>): Promise<string | null> {
 
   // Use utility for applying edits
   return applyEdits(rootNode, edits);
-}
-
-interface ImportInfo {
-  hasRelative: boolean;
-  hasResolve: boolean;
-  existingImport: any | null;
-}
-
-function analyzeExistingImports(rootNode: any): ImportInfo {
-  // Find existing node:fs imports (not node:path!)
-  const nodefsImports = rootNode.findAll({
-    rule: {
-      pattern: "import { $$$SPECIFIERS } from 'node:fs'",
-    },
-  });
-
-  // Also check for double quotes
-  const nodefsImportsDouble = rootNode.findAll({
-    rule: {
-      pattern: 'import { $$$SPECIFIERS } from "node:fs"',
-    },
-  });
-
-  const allImports = [...nodefsImports, ...nodefsImportsDouble];
-
-  let hasRelative = false;
-  let hasResolve = false;
-  let existingImport = null;
-
-  if (allImports.length > 0) {
-    existingImport = allImports[0];
-    const importText = existingImport.text();
-    hasRelative = importText.includes("relative");
-    hasResolve = importText.includes("resolve");
-  }
-
-  return { hasRelative, hasResolve, existingImport };
-}
-
-function createImportEdit(rootNode: any, importInfo: ImportInfo): Edit | null {
-  const { hasRelative, hasResolve, existingImport } = importInfo;
-
-  if (hasRelative && hasResolve) {
-    return null; // No import changes needed
-  }
-
-  if (existingImport) {
-    // Update existing import
-    const currentText = existingImport.text();
-
-    // Extract the current specifiers
-    const specifiersMatch = currentText.match(
-      /import\s*{\s*([^}]+)\s*}\s*from\s*["']node:fs["']/
-    );
-    if (!specifiersMatch) return null;
-
-    const currentSpecifiers = specifiersMatch[1].trim();
-    const specifiersList = currentSpecifiers
-      .split(",")
-      .map((s: string) => s.trim());
-
-    if (!hasRelative) {
-      specifiersList.push("relative");
-    }
-    if (!hasResolve) {
-      specifiersList.push("resolve");
-    }
-
-    const newSpecifiers = specifiersList.join(", ");
-    const newImport = `import { ${newSpecifiers} } from "node:fs";`;
-
-    return existingImport.replace(newImport);
-  } else {
-    // Add new import at the top
-    const newImport = 'import { relative, resolve } from "node:fs";\n\n';
-
-    return {
-      startPos: 0,
-      endPos: 0,
-      insertedText: newImport,
-    };
-  }
 }
 
 export default transform;
