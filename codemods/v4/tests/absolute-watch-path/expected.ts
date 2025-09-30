@@ -1,3 +1,4 @@
+import { relative, resolve } from "node:path";
 // Test Case 1: Basic arrow function with block statement
 nuxt.hook("builder:watch", (event, path) => {
   
@@ -15,7 +16,7 @@ nuxt.hook("builder:watch", async (event, filePath) =>
 );
 
 // Test Case 3: Existing node:fs import with other specifiers
-import { readFile, relative, resolve } from "node:fs";
+import { readFile } from "node:fs";
 
 nuxt.hook("builder:watch", (event, watchedPath) => {
   
