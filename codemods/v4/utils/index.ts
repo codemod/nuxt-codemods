@@ -4,17 +4,14 @@
  * Centralized utilities for all Nuxt v4 codemods
  */
 
-// Core utilities
-export * from "./codemod-utils";
+// Core AST utilities
+export * from "./ast-utils.js";
 
 // Import management
-export * from "./import-utils";
+export * from "./import-utils.js";
 
-// Nuxt-specific patterns
-export * from "./nuxt-patterns";
-
-// Testing utilities
-export * from "./test-utils";
+// Nuxt-specific patterns and constants
+export * from "./nuxt-patterns.js";
 
 // Re-export commonly used types
 export type { SgRoot, SgNode, Edit } from "codemod:ast-grep";

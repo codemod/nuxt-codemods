@@ -1,162 +1,166 @@
-import type { SgNode } from "codemod:ast-grep";
+import type { SgNode, Edit } from "codemod:ast-grep";
 
 /**
- * Specialized utilities for managing imports in codemods
+ * Import management utilities for codemods
  */
 
-export interface ImportInfo {
+export interface ImportInfo<T extends Record<string, any>> {
   hasImport: boolean;
-  existingImport: string | null;
-  needsImport: boolean;
+  existingImport: SgNode<T> | null;
+  specifiers: string[];
 }
 
 /**
- * Check if a specific import exists in the file
+ * Analyze existing imports for a specific source
  */
-export function checkImport(
-  rootNode: SgNode<any>,
-  importName: string,
+export function analyzeImports<T extends Record<string, any>>(
+  rootNode: SgNode<T>,
   source: string
-): ImportInfo {
-  const text = rootNode.text();
-  const importRegex = new RegExp(
-    `import\\s*\\{[^}]*${importName}[^}]*\\}\\s*from\\s*["']${source}["'];?`
+): ImportInfo<T> {
+  // Find imports with both quote styles
+  const singleQuoteImports = rootNode.findAll({
+    rule: {
+      pattern: `import { $$$SPECIFIERS } from '${source}'`,
+    },
+  });
+
+  const doubleQuoteImports = rootNode.findAll({
+    rule: {
+      pattern: `import { $$$SPECIFIERS } from "${source}"`,
+    },
+  });
+
+  const allImports = [...singleQuoteImports, ...doubleQuoteImports];
+
+  if (allImports.length === 0) {
+    return {
+      hasImport: false,
+      existingImport: null,
+      specifiers: [],
+    };
+  }
+
+  const existingImport = allImports[0];
+  if (!existingImport) {
+    return {
+      hasImport: false,
+      existingImport: null,
+      specifiers: [],
+    };
+  }
+  const importText = existingImport.text();
+
+  // Extract specifiers from the import
+  const specifiersMatch = importText.match(
+    /import\s*{\s*([^}]+)\s*}\s*from\s*["'][^"']+["']/
   );
 
-  const hasImport = importRegex.test(text);
-  const match = text.match(importRegex);
+  const specifiers =
+    specifiersMatch && specifiersMatch[1]
+      ? specifiersMatch[1]
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter((s: string) => s)
+      : [];
 
   return {
-    hasImport,
-    existingImport: match ? match[0] : null,
-    needsImport: !hasImport,
+    hasImport: true,
+    existingImport,
+    specifiers,
   };
 }
 
 /**
- * Check multiple imports at once
+ * Check if specific specifiers are already imported from a source
  */
-export function checkMultipleImports(
-  rootNode: SgNode<any>,
-  imports: Array<{ name: string; source: string }>
-): Record<string, ImportInfo> {
-  const result: Record<string, ImportInfo> = {};
+export function hasImportSpecifiers<T extends Record<string, any>>(
+  rootNode: SgNode<T>,
+  source: string,
+  requiredSpecifiers: string[]
+): { [key: string]: boolean } {
+  const importInfo = analyzeImports(rootNode, source);
+  const result: { [key: string]: boolean } = {};
 
-  for (const { name, source } of imports) {
-    result[name] = checkImport(rootNode, name, source);
+  for (const specifier of requiredSpecifiers) {
+    result[specifier] = importInfo.specifiers.includes(specifier);
   }
 
   return result;
 }
 
 /**
- * Add import to the top of the file
+ * Create edit to add or update imports
  */
-export function addImport(
-  fileContent: string,
-  importStatement: string
-): string {
-  const lines = fileContent.split("\n");
+export function createImportEdit<T extends Record<string, any>>(
+  rootNode: SgNode<T>,
+  source: string,
+  requiredSpecifiers: string[]
+): Edit | null {
+  const importInfo = analyzeImports(rootNode, source);
+  const missingSpecifiers = requiredSpecifiers.filter(
+    (spec) => !importInfo.specifiers.includes(spec)
+  );
 
-  // Find the best place to insert the import
+  if (missingSpecifiers.length === 0) {
+    return null; // No changes needed
+  }
+
+  if (importInfo.existingImport) {
+    // Update existing import
+    const allSpecifiers = [...importInfo.specifiers, ...missingSpecifiers];
+    const newImport = `import { ${allSpecifiers.join(
+      ", "
+    )} } from "${source}";`;
+    return importInfo.existingImport.replace(newImport);
+  } else {
+    // Add new import at the top
+    const newImport = `import { ${requiredSpecifiers.join(
+      ", "
+    )} } from "${source}";\n`;
+    return {
+      startPos: 0,
+      endPos: 0,
+      insertedText: newImport,
+    };
+  }
+}
+
+/**
+ * Manage imports for multiple sources
+ */
+export function manageImports<T extends Record<string, any>>(
+  rootNode: SgNode<T>,
+  imports: Array<{ source: string; specifiers: string[] }>
+): Edit[] {
+  const edits: Edit[] = [];
+
+  for (const { source, specifiers } of imports) {
+    const edit = createImportEdit(rootNode, source, specifiers);
+    if (edit) {
+      edits.push(edit);
+    }
+  }
+
+  return edits;
+}
+
+/**
+ * Smart import insertion - finds the best place to insert imports
+ */
+export function findImportInsertionPoint(fileContent: string): number {
+  const lines = fileContent.split("\n");
   let insertIndex = 0;
 
-  // Skip any existing imports to add at the end of import block
+  // Find the last import line or first non-comment line
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.startsWith("import ") || line.startsWith("//") || line === "") {
+    const line = lines[i]?.trim();
+    if (line?.startsWith("import ")) {
       insertIndex = i + 1;
-    } else {
+    } else if (line && !line.startsWith("//") && !line.startsWith("/*")) {
+      // Stop at first non-comment, non-empty line
       break;
     }
   }
 
-  lines.splice(insertIndex, 0, importStatement);
-  return lines.join("\n");
-}
-
-/**
- * Update existing import to include new specifier
- */
-export function updateImport(
-  fileContent: string,
-  existingImport: string,
-  importName: string
-): string {
-  // Extract existing specifiers
-  const specifiersMatch = existingImport.match(/\{([^}]+)\}/);
-  if (!specifiersMatch) return fileContent;
-
-  const existingSpecifiers = specifiersMatch[1]
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s);
-
-  // Add new specifier if not already present
-  if (!existingSpecifiers.includes(importName)) {
-    existingSpecifiers.push(importName);
-    const newSpecifiers = existingSpecifiers.join(", ");
-    const newImport = existingImport.replace(
-      /\{[^}]+\}/,
-      `{ ${newSpecifiers} }`
-    );
-    return fileContent.replace(existingImport, newImport);
-  }
-
-  return fileContent;
-}
-
-/**
- * Add multiple imports from the same source
- */
-export function addMultipleImports(
-  fileContent: string,
-  imports: string[],
-  source: string
-): string {
-  const importStatement = `import { ${imports.join(", ")} } from "${source}";`;
-  return addImport(fileContent, importStatement);
-}
-
-/**
- * Manage imports automatically - add missing, update existing
- */
-export function manageImports(
-  rootNode: SgNode<any>,
-  fileContent: string,
-  requiredImports: Array<{ name: string; source: string }>
-): string {
-  let result = fileContent;
-
-  // Group imports by source
-  const importsBySource: Record<string, string[]> = {};
-  const existingImports: Record<string, string> = {};
-
-  for (const { name, source } of requiredImports) {
-    const importInfo = checkImport(rootNode, name, source);
-
-    if (importInfo.needsImport) {
-      if (!importsBySource[source]) {
-        importsBySource[source] = [];
-      }
-      importsBySource[source].push(name);
-    } else if (importInfo.existingImport) {
-      existingImports[source] = importInfo.existingImport;
-    }
-  }
-
-  // Add new imports
-  for (const [source, imports] of Object.entries(importsBySource)) {
-    if (existingImports[source]) {
-      // Update existing import
-      for (const importName of imports) {
-        result = updateImport(result, existingImports[source], importName);
-      }
-    } else {
-      // Add new import
-      result = addMultipleImports(result, imports, source);
-    }
-  }
-
-  return result;
+  return insertIndex;
 }
