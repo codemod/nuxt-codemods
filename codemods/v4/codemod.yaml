@@ -1,0 +1,20 @@
+schema_version: "1.0"
+
+name: "@nuxt-v3-to-v4"
+version: "1.0.0"
+description: "Complete migration toolkit for Nuxt 3 to Nuxt 4"
+author: "Shadi Bitaraf <bitarafshh@gmail.com>"
+license: "MIT"
+workflow: "workflow.yaml"
+category: "migration"
+repository: "https://github.com/codemod/nuxt-codemods"
+
+targets:
+  languages: ["typescript"]
+
+keywords: ["nuxt", "breaking-change", "migration", "nuxt-v4", "nuxt-v3-to-v4"]
+
+registry:
+  access: "public"
+  visibility: "public"
+
