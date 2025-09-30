@@ -1,219 +1,228 @@
-#!/usr/bin/env node
+#!/usr/bin/env tsx
 
-import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+/**
+ * Improved Comprehensive Test Runner
+ * Actually runs codemods and validates transformations
+ */
 
-// Get current directory
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { execSync } from "child_process";
+import {
+  readFileSync,
+  writeFileSync,
+  copyFileSync,
+  unlinkSync,
+  existsSync,
+} from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
-interface TestResult {
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+interface CodemodTest {
   name: string;
-  passed: boolean;
-  error?: string;
-  actualOutput?: string;
-  expectedOutput?: string;
+  language: "tsx" | "typescript";
+  description: string;
 }
 
-interface TestSuite {
+const codemods: CodemodTest[] = [
+  {
+    name: "shallow-function-reactivity",
+    language: "tsx",
+    description: "Adds { deep: true } to data fetching hooks",
+  },
+  {
+    name: "deprecated-dedupe-value",
+    language: "tsx",
+    description: 'Transforms dedupe: true/false to "cancel"/"defer"',
+  },
+  {
+    name: "default-data-error-value",
+    language: "tsx",
+    description: "Changes === null to === undefined for data/error vars",
+  },
+  {
+    name: "absolute-watch-path",
+    language: "typescript",
+    description: 'Adds path normalization to nuxt.hook("builder:watch")',
+  },
+  {
+    name: "template-compilation-changes",
+    language: "typescript",
+    description: "Transforms addTemplate src to getContents method",
+  },
+];
+
+console.log("🧪 Improved Comprehensive Nuxt v4 Codemod Tests\n");
+
+let totalTests = 0;
+let passedTests = 0;
+let failedTests = 0;
+const results: Array<{
   name: string;
-  results: TestResult[];
-  passed: number;
-  failed: number;
-}
+  status: "PASS" | "FAIL";
+  reason: string;
+}> = [];
 
-// Simple test cases for each codemod
-const testCases = {
-  "shallow-function-reactivity": {
-    input: `const { data: users } = useLazyAsyncData(() => $fetch("/api/users"));
-const { data: posts } = useAsyncData("posts", () => $fetch("/api/posts"), {
-  server: false,
-});
-const { data: comments } = useFetch(() => $fetch("/api/comments"));`,
-    expected: `const { data: users } = useLazyAsyncData(() => $fetch("/api/users"), { deep: true });
-const { data: posts } = useAsyncData("posts", () => $fetch("/api/posts"), {
-  server: false, deep: true
-});
-const { data: comments } = useFetch(() => $fetch("/api/comments"), { deep: true });`,
-  },
-  "deprecated-dedupe-value": {
-    input: `await refresh({ dedupe: true });
-await refresh({ dedupe: false });`,
-    expected: `await refresh({ dedupe: "cancel" });
-await refresh({ dedupe: "defer" });`,
-  },
-  "default-data-error-value": {
-    input: `const { data: userData, error } = useAsyncData(() => client.value.v1.users.fetch());
-if (userData.value === null) {
-  console.log("No data");
-}`,
-    expected: `const { data: userData, error } = useAsyncData(() => client.value.v1.users.fetch());
-if (userData.value === undefined) {
-  console.log("No data");
-}`,
-  },
-};
+async function runCodemodTest(codemod: CodemodTest): Promise<void> {
+  console.log(`📋 Testing ${codemod.name}:`);
+  console.log(`   Description: ${codemod.description}`);
 
-async function runSimpleTests(): Promise<void> {
-  console.log("🧪 Running Comprehensive Nuxt v4 Codemod Tests\n");
+  const inputFile = join(__dirname, `tests/${codemod.name}/input.ts`);
+  const expectedFile = join(__dirname, `tests/${codemod.name}/expected.ts`);
+  const codemodFile = join(__dirname, `scripts/${codemod.name}.ts`);
+  const tempFile = join(__dirname, `temp-test-${codemod.name}.ts`);
 
-  const testSuite: TestSuite = {
-    name: "Nuxt v4 Codemods",
-    results: [],
-    passed: 0,
-    failed: 0,
-  };
+  totalTests++;
 
-  // Test 1: Check if all codemods have test files
-  console.log("📋 Step 1: Checking test infrastructure...\n");
-
-  const testsDir = join(__dirname, "tests");
-  const testDirs = readdirSync(testsDir)
-    .map((name) => join(testsDir, name))
-    .filter((path) => statSync(path).isDirectory());
-
-  const scriptsDir = join(__dirname, "scripts");
-  const codemodFiles = readdirSync(scriptsDir)
-    .filter((name) => name.endsWith(".ts"))
-    .map((name) => name.replace(".ts", ""));
-
-  console.log(
-    `Found ${codemodFiles.length} codemods and ${testDirs.length} test suites:`
-  );
-
-  codemodFiles.forEach((name) => {
-    const hasTest = testDirs.some((dir) => dir.endsWith(name));
-    const codemodPath = join(scriptsDir, `${name}.ts`);
-    const exists = statSync(codemodPath).isFile();
-    console.log(
-      `   ${hasTest && exists ? "✅" : "❌"} ${name} ${
-        !exists ? "(missing file)" : !hasTest ? "(missing test)" : ""
-      }`
-    );
-
-    if (hasTest && exists) {
-      testSuite.passed++;
-    } else {
-      testSuite.failed++;
+  try {
+    // Check if test files exist
+    if (!existsSync(inputFile)) {
+      throw new Error(`Input file not found: ${inputFile}`);
     }
-  });
+    if (!existsSync(expectedFile)) {
+      throw new Error(`Expected file not found: ${expectedFile}`);
+    }
+    if (!existsSync(codemodFile)) {
+      throw new Error(`Codemod file not found: ${codemodFile}`);
+    }
 
-  // Test 2: Validate test file structure
-  console.log("\n📁 Step 2: Validating test file structure...\n");
+    // Copy input to temp file
+    copyFileSync(inputFile, tempFile);
 
-  for (const testDir of testDirs) {
-    const testName = testDir.split("/").pop() || "unknown";
-    const inputPath = join(testDir, "input.ts");
-    const expectedPath = join(testDir, "expected.ts");
+    // Try to run the codemod
+    const command = `npx codemod@latest jssg run -l ${codemod.language} --target ${tempFile} ${codemodFile}`;
+    console.log(`   Command: ${command}`);
 
     try {
-      const inputExists = statSync(inputPath).isFile();
-      const expectedExists = statSync(expectedPath).isFile();
+      // Run with timeout and capture output
+      execSync(command, {
+        stdio: "pipe",
+        timeout: 30000, // 30 second timeout
+      });
 
-      if (inputExists && expectedExists) {
-        const input = readFileSync(inputPath, "utf-8");
-        const expected = readFileSync(expectedPath, "utf-8");
-        console.log(
-          `✅ ${testName} - Input: ${
-            input.split("\n").length
-          } lines, Expected: ${expected.split("\n").length} lines`
-        );
+      // Read results
+      const actualResult = readFileSync(tempFile, "utf8");
+      const expectedResult = readFileSync(expectedFile, "utf8");
+
+      // Normalize whitespace for comparison
+      const normalize = (code: string) => code.trim().replace(/\s+/g, " ");
+      const actualNormalized = normalize(actualResult);
+      const expectedNormalized = normalize(expectedResult);
+
+      if (actualNormalized === expectedNormalized) {
+        console.log("   ✅ PASSED - Transformation matches expected output");
+        results.push({
+          name: codemod.name,
+          status: "PASS",
+          reason: "Output matches expected",
+        });
+        passedTests++;
       } else {
+        console.log("   ❌ FAILED - Output differs from expected");
         console.log(
-          `❌ ${testName} - Missing ${
-            !inputExists ? "input.ts" : "expected.ts"
-          }`
+          `   Expected length: ${expectedResult.length}, Actual length: ${actualResult.length}`
         );
+
+        // Show first difference
+        const maxLen = Math.min(
+          actualNormalized.length,
+          expectedNormalized.length
+        );
+        for (let i = 0; i < maxLen; i++) {
+          if (actualNormalized[i] !== expectedNormalized[i]) {
+            console.log(`   First difference at position ${i}:`);
+            console.log(
+              `   Expected: "${expectedNormalized.slice(i, i + 20)}..."`
+            );
+            console.log(
+              `   Actual:   "${actualNormalized.slice(i, i + 20)}..."`
+            );
+            break;
+          }
+        }
+
+        results.push({
+          name: codemod.name,
+          status: "FAIL",
+          reason: "Output differs from expected",
+        });
+        failedTests++;
       }
-    } catch (error) {
-      console.log(`❌ ${testName} - Error reading files: ${error.message}`);
+    } catch (execError: any) {
+      const errorMsg = execError.message || execError.toString();
+      console.log("   ❌ FAILED - Codemod execution failed");
+
+      if (errorMsg.includes("Cannot resolve module")) {
+        console.log(
+          "   Reason: Import resolution error (likely utils imports)"
+        );
+        results.push({
+          name: codemod.name,
+          status: "FAIL",
+          reason: "Import resolution error",
+        });
+      } else {
+        console.log(`   Reason: ${errorMsg.split("\n")[0]}`);
+        results.push({
+          name: codemod.name,
+          status: "FAIL",
+          reason: "Execution error",
+        });
+      }
+      failedTests++;
+    }
+  } catch (setupError: any) {
+    console.log(`   ❌ FAILED - Setup error: ${setupError.message}`);
+    results.push({
+      name: codemod.name,
+      status: "FAIL",
+      reason: `Setup error: ${setupError.message}`,
+    });
+    failedTests++;
+  } finally {
+    // Cleanup temp file
+    if (existsSync(tempFile)) {
+      unlinkSync(tempFile);
     }
   }
 
-  // Test 3: Check codemod syntax and imports
-  console.log("\n🔍 Step 3: Checking codemod syntax and imports...\n");
+  console.log(""); // Empty line for readability
+}
 
-  for (const codemodName of codemodFiles) {
-    const codemodPath = join(scriptsDir, `${codemodName}.ts`);
-
-    try {
-      const content = readFileSync(codemodPath, "utf-8");
-
-      // Check for required imports
-      const hasAstGrepImport = content.includes('from "codemod:ast-grep"');
-      const hasUtilsImport = content.includes('from "../utils/index"');
-      const hasDefaultExport = content.includes("export default");
-      const hasTransformFunction =
-        content.includes("function transform") ||
-        content.includes("async function transform");
-
-      const issues = [];
-      if (!hasAstGrepImport) issues.push("missing ast-grep import");
-      if (!hasUtilsImport) issues.push("not using utils");
-      if (!hasDefaultExport) issues.push("missing default export");
-      if (!hasTransformFunction) issues.push("missing transform function");
-
-      if (issues.length === 0) {
-        console.log(`✅ ${codemodName} - Syntax and imports look good`);
-      } else {
-        console.log(`⚠️  ${codemodName} - Issues: ${issues.join(", ")}`);
-      }
-    } catch (error) {
-      console.log(`❌ ${codemodName} - Error reading file: ${error.message}`);
-    }
-  }
-
-  // Test 4: Manual transformation tests for key codemods
-  console.log("\n🔧 Step 4: Manual transformation tests...\n");
-
-  for (const [codemodName, testCase] of Object.entries(testCases)) {
-    console.log(`Testing ${codemodName}:`);
-    console.log(`  Input: ${testCase.input.split("\n").length} lines`);
-    console.log(`  Expected: ${testCase.expected.split("\n").length} lines`);
-    console.log(`  ✅ Test case defined and ready for manual verification`);
+async function main() {
+  // Run all tests
+  for (const codemod of codemods) {
+    await runCodemodTest(codemod);
   }
 
   // Summary
-  console.log("\n📊 Test Summary:");
-  console.log(
-    `   • All ${codemodFiles.length} codemods have proper file structure`
-  );
-  console.log(
-    `   • All ${testDirs.length} test suites have input/expected files`
-  );
-  console.log(
-    `   • All codemods use the utils folder for shared functionality`
-  );
-  console.log(`   • Test cases are defined for key transformations`);
+  console.log("📊 Test Results Summary:");
+  console.log("═".repeat(50));
 
-  console.log("\n🎯 Manual Testing Instructions:");
-  console.log("   To test individual codemods, create a test file and run:");
-  console.log("   1. Create a test file with the input code");
-  console.log("   2. Import and run the codemod transform function");
-  console.log("   3. Compare the output with expected results");
-
-  console.log("\n📝 Example test code:");
-  console.log(`
-import transform from './scripts/shallow-function-reactivity.js';
-
-const input = \`const { data: users } = useLazyAsyncData(() => $fetch("/api/users"));\`;
-const mockRoot = { /* mock SgRoot implementation */ };
-const result = await transform(mockRoot);
-console.log('Result:', result);
-  `);
-
-  console.log("\n🎉 All codemods are properly structured and ready for use!");
-  console.log(
-    "   The utils folder is being used effectively to reduce code duplication."
-  );
-  console.log("   Each codemod has comprehensive test cases for validation.");
-}
-
-// Run tests if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runSimpleTests().catch((error) => {
-    console.error("Test runner failed:", error);
-    process.exit(1);
+  results.forEach((result) => {
+    const status = result.status === "PASS" ? "✅" : "❌";
+    console.log(`${status} ${result.name}: ${result.reason}`);
   });
+
+  console.log("═".repeat(50));
+  console.log(`Total Tests: ${totalTests}`);
+  console.log(`Passed: ${passedTests}`);
+  console.log(`Failed: ${failedTests}`);
+  console.log(`Success Rate: ${Math.round((passedTests / totalTests) * 100)}%`);
+
+  if (failedTests === 0) {
+    console.log("\n🎉 All tests passed! Codemods are working correctly.");
+    process.exit(0);
+  } else {
+    console.log(
+      "\n⚠️  Some tests failed. The main issue is likely import resolution."
+    );
+    console.log(
+      "💡 Recommendation: Create standalone versions for individual testing,"
+    );
+    console.log("   or use the workflow.yaml for end-to-end testing.");
+    process.exit(1);
+  }
 }
+
+main().catch(console.error);
