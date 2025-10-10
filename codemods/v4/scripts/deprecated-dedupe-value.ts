@@ -1,6 +1,6 @@
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
-import { hasContent, applyEdits, replaceInNode } from "../utils/index.js";
+import { hasContent, applyEdits, replaceInNode } from "../utils/index.ts";
 
 async function transform(root: SgRoot<TSX>): Promise<string | null> {
   const rootNode = root.root();

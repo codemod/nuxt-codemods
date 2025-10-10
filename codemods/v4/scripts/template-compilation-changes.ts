@@ -1,8 +1,9 @@
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
-import { hasContent } from "../utils/index.js";
+import { hasContent } from "../utils/index.ts";
+import { ensureImport } from "../utils/import-utils.ts";
 
-function transform(root: SgRoot<TS>): string | null {
+async function transform(root: SgRoot<TS>): Promise<string | null> {
   const rootNode = root.root();
 
   // Quick check using utility

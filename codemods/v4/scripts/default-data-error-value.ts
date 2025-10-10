@@ -5,19 +5,13 @@ import {
   applyEdits,
   DATA_FETCH_HOOKS,
   PATTERNS,
-} from "../utils/index.js";
+} from "../utils/index.ts";
 
 async function transform(root: SgRoot<TSX>): Promise<string | null> {
   const rootNode = root.root();
 
-  // Quick check - does file contain data fetching hooks?
-  if (!hasAnyContent(root, DATA_FETCH_HOOKS)) {
-    return null;
-  }
-
   // Extract data and error variable names from destructuring
   const dataErrorVars = new Set<string>();
-
   // Find all const declarations that assign to data fetch hooks
   const constDeclarations = rootNode.findAll({
     rule: { pattern: PATTERNS.CONST_DECLARATION },

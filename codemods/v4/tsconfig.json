@@ -13,6 +13,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true
-  },
-  "exclude": ["tests", "utils/test-utils.ts", "**/*test-utils*"]
+  }
 }
