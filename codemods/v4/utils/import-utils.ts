@@ -22,6 +22,43 @@ type ImportSpecifier = NamedImportSpecifier | DefaultImportSpecifier;
 
 // <------------          HELPERS          ------------>
 
+function detectTypeOnlyImport(importNode: SgNode<tsxTypes | tsTypes>): boolean {
+  // Find the import_clause
+  const importClause =
+    importNode.field("import_clause") ||
+    importNode.find({
+      rule: { kind: "import_clause" },
+    });
+
+  if (!importClause) {
+    return false;
+  }
+
+  // Check if there's a 'type' token before the import_clause
+  // This indicates "import type { ... }" pattern
+  const children = importNode.children();
+  let foundImport = false;
+
+  for (const child of children) {
+    if (child.kind() === "import") {
+      foundImport = true;
+      continue;
+    }
+
+    if (foundImport && child.kind() === "type") {
+      // Found 'type' token right after 'import' - this is a type-only import
+      return true;
+    }
+
+    if (foundImport && child.kind() === "import_clause") {
+      // Found import_clause without 'type' in between - this is a regular import
+      return false;
+    }
+  }
+
+  return false;
+}
+
 function findImportFromSource(
   program: SgNode<tsxTypes | tsTypes, "program">, //root ast node of entire ts/tsx file
   source: string //the string we're looking for in the end of the import statement.
@@ -71,7 +108,7 @@ function getExistingSpecifiers(
   const importSpecifiers: ImportSpecifier[] = []; //initialize empty array to store import specifiers
 
   //records whether the import is type-only import
-  const isTypeImport = importNode.text().includes("import type"); //TODO:dont do string op
+  const isTypeImport = detectTypeOnlyImport(importNode);
 
   // Try field first, then fallback to finding by kind
   let importClause = importNode.field("import_clause");
