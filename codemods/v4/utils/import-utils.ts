@@ -73,7 +73,14 @@ function getExistingSpecifiers(
   //records whether the import is type-only import
   const isTypeImport = importNode.text().includes("import type"); //TODO:dont do string op
 
-  const importClause = importNode.field("import_clause"); //import clause: anything between import and from
+  // Try field first, then fallback to finding by kind
+  let importClause = importNode.field("import_clause");
+  if (!importClause) {
+    // Fallback: find import_clause as a child node
+    importClause = importNode.find({
+      rule: { kind: "import_clause" },
+    });
+  }
   if (!importClause) {
     return importSpecifiers;
   } //need importClause node to look inside it for specifiers
@@ -101,7 +108,13 @@ function getExistingSpecifiers(
   }
 
   // Find named imports
-  const namedImports = importClause.field("named_imports");
+  let namedImports = importClause.field("named_imports");
+  if (!namedImports) {
+    // Fallback: find named_imports as a child node
+    namedImports = importClause.find({
+      rule: { kind: "named_imports" },
+    });
+  }
   if (namedImports) {
     const specifiers = namedImports.findAll({
       rule: { kind: "import_specifier" },
@@ -361,9 +374,53 @@ export function ensureImport(
   let edit: Edit;
 
   if (existingImport) {
-    // CASE 2: Import statement exists but needs editing → REPLACE the existing statement
-    const newImportText = buildImportStatement(source, imports, quoteStyle);
-    edit = existingImport.replace(newImportText);
+    // Check if we have mixed type/runtime scenario
+    const existingSpecs = getExistingSpecifiers(existingImport);
+    const hasExistingTyped = existingSpecs.some((spec) => spec.typed);
+    const hasExistingRuntime = existingSpecs.some((spec) => !spec.typed);
+    const hasRequestedTyped = imports.some((spec) => spec.typed);
+    const hasRequestedRuntime = imports.some((spec) => !spec.typed);
+
+    // Check if this is truly a mixed scenario (different imports) or just type conversion (same imports)
+    const isMixedScenario =
+      (hasExistingTyped && hasRequestedRuntime) ||
+      (hasExistingRuntime && hasRequestedTyped);
+
+    if (isMixedScenario) {
+      // Check if requested imports are actually NEW imports (not just type conversions)
+      const hasNewImports = imports.some((requestedSpec) => {
+        return !existingSpecs.some((existing) => {
+          if (requestedSpec.type === "default" && existing.type === "default") {
+            return true; // Same default import
+          }
+          if (requestedSpec.type === "named" && existing.type === "named") {
+            return existing.name === requestedSpec.name; // Same named import
+          }
+          return false;
+        });
+      });
+
+      if (hasNewImports) {
+        // CASE 2A: True mixed scenario → ADD new separate import statement (don't replace)
+        const newImportText = buildImportStatement(source, imports, quoteStyle);
+
+        // For mixed scenarios, always add the new import AFTER the existing one
+        const existingImportEnd = existingImport.range().end.index;
+        edit = {
+          startPos: existingImportEnd,
+          endPos: existingImportEnd,
+          insertedText: "\n" + newImportText,
+        };
+      } else {
+        // CASE 2B: Type conversion scenario → REPLACE the existing statement
+        const newImportText = buildImportStatement(source, imports, quoteStyle);
+        edit = existingImport.replace(newImportText);
+      }
+    } else {
+      // CASE 2C: Same type scenario → REPLACE the existing statement
+      const newImportText = buildImportStatement(source, imports, quoteStyle);
+      edit = existingImport.replace(newImportText);
+    }
   } else {
     // CASE 3: Import statement doesn't exist → ADD new import statement
     const newImportText = buildImportStatement(source, imports, quoteStyle);
