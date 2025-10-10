@@ -1,122 +1,107 @@
-// jssg-codemod
 import type { SgRoot, Edit } from "codemod:ast-grep";
-import type TS from "codemod:ast-grep/langs/typescript";
-import {
-  hasContent,
-  applyEdits,
-  findFunctionCallsWithFirstArg,
-  createImportEdit,
-} from "../utils/index.js";
+import type TSX from "codemod:ast-grep/langs/tsx";
+import { hasContent } from "../utils/index.ts";
+import { ensureImport } from "../utils/import-utils.ts";
 
-async function transform(root: SgRoot<TS>): Promise<string | null> {
+async function transform(root: SgRoot<TSX>): Promise<string | null> {
   const rootNode = root.root();
 
-  // Quick check using utility
+  // Quick check - does file contain nuxt.hook calls?
   if (!hasContent(root, "nuxt.hook")) {
     return null;
   }
 
-  // Find nuxt.hook('builder:watch', ...) calls with arrow functions
-  const hookCalls = findFunctionCallsWithFirstArg(
-    rootNode,
-    "nuxt.hook",
-    "builder:watch"
-  );
-
-  if (hookCalls.length === 0) {
-    return null;
-  }
-
   const edits: Edit[] = [];
-  let needsImportUpdate = false;
+  let needsImport = false;
 
-  // We'll check imports when needed
+  // Find nuxt.hook calls with "builder:watch" as first argument
+  const hookCalls = rootNode.findAll({
+    rule: {
+      pattern: 'nuxt.hook("builder:watch", $CALLBACK)',
+    },
+  });
 
-  // Process each hook call
   for (const hookCall of hookCalls) {
     const callback = hookCall.getMatch("CALLBACK");
-    if (!callback || !callback.is("arrow_function")) {
-      continue;
-    }
 
-    // Get parameters - we need exactly 2 parameters
-    const parameters = callback.field("parameters");
-    if (!parameters) continue;
+    if (!callback || !callback.is("arrow_function")) continue;
 
-    // Filter out non-parameter children (parentheses, commas)
-    const paramList = parameters
-      .children()
-      .filter((child) => child.is("required_parameter"));
-    if (paramList.length !== 2) {
-      continue;
-    }
+    // Get the parameters
+    const params = callback.field("parameters");
+    if (!params) continue;
 
-    const secondParam = paramList[1];
-    if (!secondParam) continue;
+    // Find the parameter identifiers
+    const paramIdentifiers = params.findAll({
+      rule: { kind: "identifier" },
+    });
 
-    // Get the parameter name (must be an identifier, not destructuring)
-    const paramPattern = secondParam.field("pattern");
-    if (!paramPattern || !paramPattern.is("identifier")) {
-      continue;
-    }
+    if (paramIdentifiers.length !== 2) continue;
 
-    const paramName = paramPattern.text();
-
-    // Create the path normalization statement
-    const pathNormalization = `${paramName} = relative(nuxt.options.srcDir, resolve(nuxt.options.srcDir, ${paramName}));`;
+    const pathParam = paramIdentifiers[1]; // Second parameter
+    if (!pathParam) continue;
+    const pathParamName = pathParam.text();
 
     // Get the function body
     const body = callback.field("body");
     if (!body) continue;
 
+    // Check if the function is async
+    const isAsync = callback.text().includes("async");
+
     if (body.is("statement_block")) {
-      // Function has a block body - insert at the beginning
-      // statement_block doesn't have open_token field, we need to find the first child
-      const children = body.children();
-      let insertPos = body.range().start.index + 1; // After the opening brace
-
-      // Find the first actual statement to insert before it
-      for (const child of children) {
-        if (
-          child.is("expression_statement") ||
-          child.is("return_statement") ||
-          child.is("variable_declaration") ||
-          child.kind().endsWith("_statement")
-        ) {
-          insertPos = child.range().start.index;
-          break;
-        }
-      }
-
-      edits.push({
-        startPos: insertPos,
-        endPos: insertPos,
-        insertedText: `\n  ${pathNormalization}\n`,
-      });
-      needsImportUpdate = true;
-    } else {
-      // Function has expression body - convert to block statement
+      // Function has a block body - insert path normalization at the beginning
+      const asyncKeyword = isAsync ? "async " : "";
       const bodyText = body.text();
-      const newBody = `{\n  ${pathNormalization}\n  return ${bodyText};\n}`;
 
-      edits.push(body.replace(newBody));
-      needsImportUpdate = true;
+      // Create replacement with path normalization added at the beginning of the block
+      const bodyContent = bodyText.slice(1, -1).trim(); // Remove braces
+      const replacement = `nuxt.hook("builder:watch", ${asyncKeyword}(event, ${pathParamName}) => {
+  ${pathParamName} = relative(
+    nuxt.options.srcDir,
+    resolve(nuxt.options.srcDir, ${pathParamName})
+  );
+  ${bodyContent}
+})`;
+
+      edits.push(hookCall.replace(replacement));
+      needsImport = true;
+    } else {
+      // For expression bodies, replace with block statement
+      const bodyText = body.text();
+      const asyncKeyword = isAsync ? "async " : "";
+      const replacement = `nuxt.hook("builder:watch", ${asyncKeyword}(event, ${pathParamName}) => {
+  ${pathParamName} = relative(
+    nuxt.options.srcDir,
+    resolve(nuxt.options.srcDir, ${pathParamName})
+  );
+  return ${bodyText};
+})`;
+
+      edits.push(hookCall.replace(replacement));
+      needsImport = true;
     }
   }
 
-  // Add imports if needed
-  if (needsImportUpdate) {
-    const importEdit = createImportEdit(rootNode, "node:path", [
-      "relative",
-      "resolve",
+  // Add imports if needed - MUST be first in edits array
+  if (needsImport) {
+    const importResult = ensureImport(rootNode as any, "node:path", [
+      { type: "named", name: "relative", typed: false },
+      { type: "named", name: "resolve", typed: false },
     ]);
-    if (importEdit) {
-      edits.unshift(importEdit); // Add import at the beginning
+
+    if (
+      importResult.edit.insertedText &&
+      importResult.edit.insertedText.trim()
+    ) {
+      edits.unshift(importResult.edit); // Add import at the beginning
     }
   }
 
-  // Use utility for applying edits
-  return applyEdits(rootNode, edits);
+  if (edits.length === 0) {
+    return null;
+  }
+
+  return rootNode.commitEdits(edits);
 }
 
 export default transform;
