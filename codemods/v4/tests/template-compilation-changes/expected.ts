@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { template } from "lodash-es";
 // Test case 1: Basic addTemplate with .ejs file
 addTemplate({
   fileName: "appinsights-vue.js",
