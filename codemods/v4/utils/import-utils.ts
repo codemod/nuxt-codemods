@@ -71,7 +71,7 @@ function getExistingSpecifiers(
   const importSpecifiers: ImportSpecifier[] = []; //initialize empty array to store import specifiers
 
   //records whether the import is type-only import
-  const isTypeImport = importNode.text().includes("import type");
+  const isTypeImport = importNode.text().includes("import type"); //TODO:dont do string op
 
   const importClause = importNode.field("import_clause"); //import clause: anything between import and from
   if (!importClause) {
