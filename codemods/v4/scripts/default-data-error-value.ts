@@ -1,10 +1,7 @@
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
 import {
-  hasAnyContent,
-  applyEdits,
   DATA_FETCH_HOOKS,
-  PATTERNS,
 } from "../utils/index.ts";
 
 async function transform(root: SgRoot<TSX>): Promise<string | null> {
@@ -14,7 +11,7 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
   const dataErrorVars = new Set<string>();
   // Find all const declarations that assign to data fetch hooks
   const constDeclarations = rootNode.findAll({
-    rule: { pattern: PATTERNS.CONST_DECLARATION },
+    rule: { pattern: "const $DECL = $HOOK($$$ARGS)" },
   });
 
   constDeclarations.forEach((decl) => {

@@ -1,6 +1,6 @@
 import type { SgRoot } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
-import { ensureImport } from "../../utils/import-utils.ts";
+import { ensureImport } from "../../utils/imports.ts";
 
 //command to run the test:
 //codemod jssg run --language typescript --target case-1-add-empty-file/input.ts test-runner.ts

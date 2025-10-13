@@ -1,6 +1,6 @@
 import type { SgRoot } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
-import { ensureImport } from "../../utils/import-utils.ts";
+import { ensureImport } from "../../utils/imports.ts";
 
 /**
  * CASE 7: REPLACE - Runtime import exists, replace with type import

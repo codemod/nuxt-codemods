@@ -8,10 +8,7 @@
 export * from "./ast-utils.ts";
 
 // Import management
-export * from "./import-utils.ts";
-
-// Nuxt-specific patterns and constants. not used 95%
-export * from "./nuxt-patterns.ts";
+export * from "./imports.ts";
 
 // Re-export commonly used types
 export type { SgRoot, SgNode, Edit } from "codemod:ast-grep";
