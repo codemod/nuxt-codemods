@@ -1,10 +1,9 @@
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
-import {
-  DATA_FETCH_HOOKS,
-} from "../utils/index.ts";
+import type HTML from "codemod:ast-grep/langs/html";
+import { DATA_FETCH_HOOKS } from "../utils/index.ts";
 
-async function transform(root: SgRoot<TSX>): Promise<string | null> {
+async function transform(root: SgRoot<TSX | HTML>): Promise<string | null> {
   const rootNode = root.root();
 
   // Extract data and error variable names from destructuring

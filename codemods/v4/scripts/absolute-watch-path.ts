@@ -1,5 +1,6 @@
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TSX from "codemod:ast-grep/langs/tsx";
+import type HTML from "codemod:ast-grep/langs/html";
 import { hasContent } from "../utils/index.ts";
 import { ensureImport } from "../utils/imports.ts";
 

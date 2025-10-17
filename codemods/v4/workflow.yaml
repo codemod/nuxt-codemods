@@ -1,15 +1,17 @@
 version: "1"
 
-#<-- change the order of nodes after finding out what each does and how they interact-->
 nodes:
-  - id: apply-transforms
-    name: Apply AST Transformations for nuxt upgrade
+  - id: apply-transforms-typescript
+    name: Apply AST Transformations for nuxt upgrade (TypeScript files)
     type: automatic
+    language: "typescript"
+    include:
+      - "**/*.ts"
+      - "**/*.tsx"
     steps:
       - name: "Apply absolute watch path transformations"
         js-ast-grep:
           js_file: scripts/absolute-watch-path.ts
-          language: "typescript"
           exclude:
             - "**/*.cjs"
             - "**/*.md"
@@ -17,7 +19,6 @@ nodes:
       - name: "Apply default data error value transformations"
         js-ast-grep:
           js_file: scripts/default-data-error-value.ts
-          language: "typescript"
           exclude:
             - "**/*.cjs"
             - "**/*.md"
@@ -25,7 +26,6 @@ nodes:
       - name: "Apply deprecated dedupe value transformations"
         js-ast-grep:
           js_file: scripts/deprecated-dedupe-value.ts
-          language: "typescript"
           exclude:
             - "**/*.cjs"
             - "**/*.md"
@@ -33,7 +33,6 @@ nodes:
       - name: "Apply template compilation changes transformations"
         js-ast-grep:
           js_file: scripts/template-compilation-changes.ts
-          language: "typescript"
           exclude:
             - "**/*.cjs"
             - "**/*.md"
@@ -41,7 +40,49 @@ nodes:
       - name: "Apply shallow function reactivity transformations"
         js-ast-grep:
           js_file: scripts/shallow-function-reactivity.ts
-          language: "typescript"
+          exclude:
+            - "**/*.cjs"
+            - "**/*.md"
+            - "**/*.txt"
+
+  - id: apply-transforms-vue
+    name: Apply AST Transformations for nuxt upgrade (Vue files)
+    type: automatic
+    language: "html"
+    include:
+      - "**/*.vue"
+    steps:
+      - name: "Apply absolute watch path transformations"
+        js-ast-grep:
+          js_file: scripts/absolute-watch-path.ts
+          exclude:
+            - "**/*.cjs"
+            - "**/*.md"
+            - "**/*.txt"
+      - name: "Apply default data error value transformations"
+        js-ast-grep:
+          js_file: scripts/default-data-error-value.ts
+          exclude:
+            - "**/*.cjs"
+            - "**/*.md"
+            - "**/*.txt"
+      - name: "Apply deprecated dedupe value transformations"
+        js-ast-grep:
+          js_file: scripts/deprecated-dedupe-value.ts
+          exclude:
+            - "**/*.cjs"
+            - "**/*.md"
+            - "**/*.txt"
+      - name: "Apply template compilation changes transformations"
+        js-ast-grep:
+          js_file: scripts/template-compilation-changes.ts
+          exclude:
+            - "**/*.cjs"
+            - "**/*.md"
+            - "**/*.txt"
+      - name: "Apply shallow function reactivity transformations"
+        js-ast-grep:
+          js_file: scripts/shallow-function-reactivity.ts
           exclude:
             - "**/*.cjs"
             - "**/*.md"

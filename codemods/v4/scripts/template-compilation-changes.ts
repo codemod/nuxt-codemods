@@ -1,9 +1,10 @@
 import type { SgRoot, Edit } from "codemod:ast-grep";
 import type TS from "codemod:ast-grep/langs/typescript";
+import type HTML from "codemod:ast-grep/langs/html";
 import { hasContent } from "../utils/index.ts";
 import { ensureImport } from "../utils/imports.ts";
 
-async function transform(root: SgRoot<TS>): Promise<string | null> {
+async function transform(root: SgRoot<TS | HTML>): Promise<string | null> {
   const rootNode = root.root();
 
   // Quick check - does file contain addTemplate calls?
