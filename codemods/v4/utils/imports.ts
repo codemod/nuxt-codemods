@@ -407,6 +407,49 @@ export function ensureImport(
     };
   }
 
+  //fallback logic for when no existing import from source exists
+  if (!existingImport) {
+    const newImportText = buildImportStatement(source, imports, quoteStyle);
+    const allImports = program.findAll({
+      rule: {
+        kind: "import_statement",
+        inside: {
+          kind: "program",
+          stopBy: "end",
+        },
+      },
+    });
+
+    if (allImports.length === 0) {
+      // No imports at all - add at beginning with proper positioning
+      const hashBang = program.find({
+        rule: { kind: "hash_bang_line" },
+      });
+
+      const insertPos = hashBang ? hashBang.range().end.index : 0;
+
+      return {
+        edit: {
+          startPos: insertPos,
+          endPos: insertPos,
+          insertedText: (hashBang ? "\n" : "") + newImportText + "\n",
+        },
+        importAliases: imports.map((spec) => spec.alias || spec.name),
+      };
+    } else {
+      // Add after last import with proper positioning
+      const lastImport = allImports[allImports.length - 1];
+      return {
+        edit: {
+          startPos: lastImport.range().end.index,
+          endPos: lastImport.range().end.index,
+          insertedText: "\n" + newImportText,
+        },
+        importAliases: imports.map((spec) => spec.alias || spec.name),
+      };
+    }
+  }
+
   // Step 6: Determine if we need to REPLACE or ADD
   let edit: Edit;
 

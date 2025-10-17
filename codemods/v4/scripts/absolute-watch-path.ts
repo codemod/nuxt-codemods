@@ -4,19 +4,15 @@ import type HTML from "codemod:ast-grep/langs/html";
 import { hasContent } from "../utils/index.ts";
 import { ensureImport } from "../utils/imports.ts";
 
-async function transform(root: SgRoot<TSX>): Promise<string | null> {
-  const rootNode = root.root();
-
-  // Quick check - does file contain nuxt.hook calls?
-  if (!hasContent(root, "nuxt.hook")) {
-    return null;
-  }
-
+// Helper function that contains the core transformation logic
+// This works on any TypeScript AST (from .ts files or extracted from .vue files)
+//TODO: "any" type casting should be fixed/replaced.
+function transformTypeScriptAST(tsRootNode: any, tsRoot: SgRoot<TSX>): Edit[] {
   const edits: Edit[] = [];
   let needsImport = false;
 
   // Find nuxt.hook calls with "builder:watch" as first argument
-  const hookCalls = rootNode.findAll({
+  const hookCalls = tsRootNode.findAll({
     rule: {
       pattern: 'nuxt.hook("builder:watch", $CALLBACK)',
     },
@@ -25,7 +21,17 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
   for (const hookCall of hookCalls) {
     const callback = hookCall.getMatch("CALLBACK");
 
-    if (!callback || !callback.is("arrow_function")) continue;
+    if (!callback) continue;
+
+    // Check if it's an arrow function - if not, skip for now
+    if (!callback.is("arrow_function")) continue;
+
+    // Skip if the hook already has path normalization (avoid re-transforming)
+    const hookText = hookCall.text();
+    if (hookText.includes("relative(") && hookText.includes("resolve(")) {
+      //TODO string op should be replaced
+      continue;
+    }
 
     // Get the parameters
     const params = callback.field("parameters");
@@ -55,12 +61,9 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
       const bodyText = body.text();
 
       // Create replacement with path normalization added at the beginning of the block
-      const bodyContent = bodyText.slice(1, -1).trim(); // Remove braces
+      const bodyContent = bodyText.slice(1, -1).trim();
       const replacement = `nuxt.hook("builder:watch", ${asyncKeyword}(event, ${pathParamName}) => {
-  ${pathParamName} = relative(
-    nuxt.options.srcDir,
-    resolve(nuxt.options.srcDir, ${pathParamName})
-  );
+  ${pathParamName} = relative(nuxt.options.srcDir, resolve(nuxt.options.srcDir, ${pathParamName}));
   ${bodyContent}
 })`;
 
@@ -83,20 +86,50 @@ async function transform(root: SgRoot<TSX>): Promise<string | null> {
     }
   }
 
-  // Add imports if needed - MUST be first in edits array
-  if (needsImport) {
-    const importResult = ensureImport(rootNode as any, "node:path", [
-      { type: "named", name: "relative", typed: false },
-      { type: "named", name: "resolve", typed: false },
-    ]);
+  // Handle imports - add import BEFORE other edits
+  //TODO: the import utils should be updated to be able to handle this.
+  if (needsImport && edits.length > 0) {
+    // Check if import already exists in the original code using AST patterns
+    const hasNodePathImport =
+      tsRoot.root().findAll({
+        rule: {
+          pattern: 'import { $IMPORTS } from "node:path"',
+        },
+      }).length > 0 ||
+      tsRoot.root().findAll({
+        rule: {
+          pattern: "import { $IMPORTS } from 'node:path'",
+        },
+      }).length > 0;
 
-    if (
-      importResult.edit.insertedText &&
-      importResult.edit.insertedText.trim()
-    ) {
-      edits.unshift(importResult.edit); // Add import at the beginning
+    if (!hasNodePathImport) {
+      // Add import using ensureImport on the ORIGINAL ast
+      const importResult = ensureImport(tsRoot.root() as any, "node:path", [
+        { type: "named", name: "relative", typed: false },
+        { type: "named", name: "resolve", typed: false },
+      ]);
+
+      if (
+        importResult.edit.insertedText &&
+        importResult.edit.insertedText.trim()
+      ) {
+        // Prepend the import edit to the list of edits
+        edits.unshift(importResult.edit);
+      }
     }
   }
+
+  return edits;
+}
+
+async function transform(root: SgRoot<TSX | HTML>): Promise<string | null> {
+  const rootNode = root.root();
+
+  // Quick check - does file contain nuxt.hook calls?
+  if (!hasContent(root, "nuxt.hook")) {
+    return null;
+  }
+  const edits = transformTypeScriptAST(rootNode as any, root as SgRoot<TSX>);
 
   if (edits.length === 0) {
     return null;
