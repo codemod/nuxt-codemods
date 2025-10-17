@@ -1,0 +1,16 @@
+{
+  "name": "nuxt-v3-to-v4",
+  "version": "0.1.0",
+  "description": "Transform legacy code patterns",
+  "type": "module",
+  "devDependencies": {
+    "@codemod.com/jssg-types": "^1.0.9",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.2",
+    "tsx": "^4.19.1"
+  },
+  "scripts": {
+    "test": "tsx comprehensive-test-runner.ts",
+    "check-types": "npx tsc --noEmit"
+  }
+}
